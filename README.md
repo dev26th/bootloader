@@ -2,16 +2,16 @@
 
 A bootloader for STM32F030 with encryption + PC-tools. The bootloader works via UART. A firmware is encrypted with AES-128 and is protected against communication errors with CRC-32.
 
-##Content
+## Content
 * bl_f030 - the bootloader itself
 * creator - PC tool to create an encrypted file with firmware
 * control - PC tool to download the encrypted firmware into uC
 * led_example - a very simple example firmware
 * echo_example - a bit more real firmware
 
-##How to use
+## How to use
 
-###You as developer, one time
+### You as developer, one time
 
 Make a copy of bl_f030, take a look into main.c. Here you should change the define PRODUCT_ID to something unique for each your project - just to avoid a user mistakes. In any case you must change the 'key' to random 16 bytes.
 
@@ -19,13 +19,13 @@ You might want to change the condition to start the bootloader too. Default - wa
 
 Now compile and flash the bootloader.
 
-###You as developer, each upgrade
+### You as developer, each upgrade
 
 Your app must start from 0x08001000 and leave first 192 bytes of RAM unused. E.g. see echo_example/ld/mem.ld
 
 After compiling your firmware, use 'creator' to encrypt it. Enter 'Product ID' and 'Key' exactly as in your copy of bl_f030. 'App Version' - something, just to help your users to distinct upgrades.
 
-###Your user
+### Your user
 
 Provide 'control' together with the encrypted firmware. 
 
