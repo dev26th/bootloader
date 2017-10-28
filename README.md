@@ -9,6 +9,8 @@ A bootloader for STM32F030 with encryption + PC-tools. The bootloader works via 
 * led_example - a very simple example firmware
 * echo_example - a bit more real firmware
 
+The PC-tools are developed qith Qt and may be compiled for Windows (untested) or Linux (tested).
+
 ## How to use
 
 ### You as developer, one time
