@@ -18,7 +18,8 @@ static uint8_t KEY[] = { 0xfe, 0xcc, 0xb8, 0x70, 0x05, 0xda, 0x13, 0x0c, 0x06, 0
 #define CPU_F               8000000
 #define BAUD                 115200
 #define APP_START        0x08001000 // 4k for bootloader
-#define APP_END          0x08004000 //16K
+//#define APP_END          0x08004000 //16K
+#define APP_END          0x0800FFFF //64K
 #define VTOR_SIZE              0xC0
 #define PAGE_SIZE              1024
 #define BLOCK_SIZE               16
