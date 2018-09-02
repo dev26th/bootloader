@@ -8,6 +8,8 @@
 
 #include "tiny-AES-c/aes.h"
 
+#define UART4 //Default UART1
+
 #define PRODUCT_ID       0xAABBCCDD
 static uint8_t KEY[] = { 0xfe, 0xcc, 0xb8, 0x70, 0x05, 0xda, 0x13, 0x0c, 0x06, 0xe8, 0x6d, 0xd9, 0xf1, 0x75, 0x9d, 0x45 };
 
@@ -16,7 +18,8 @@ static uint8_t KEY[] = { 0xfe, 0xcc, 0xb8, 0x70, 0x05, 0xda, 0x13, 0x0c, 0x06, 0
 #define CPU_F               8000000
 #define BAUD                 115200
 #define APP_START        0x08001000 // 4k for bootloader
-#define APP_END          0x08004000
+//#define APP_END          0x08004000 //16K
+#define APP_END          0x0800FFFF //64K
 #define VTOR_SIZE              0xC0
 #define PAGE_SIZE              1024
 #define BLOCK_SIZE               16
@@ -169,13 +172,24 @@ void FLASH_write(uint32_t addr, uint32_t const * data, size_t dataLen) {
 // ==================================================================================================================================================
 
 bool UART_transmissionComplete(void) {
+#ifdef UART4
+    return (USART4->ISR & USART_ISR_TC);
+#else
     return (USART1->ISR & USART_ISR_TC);
+#endif
 }
 
 void UART_sendByte(uint8_t b) {
+#ifdef UART4
+    while(!(USART4->ISR & USART_ISR_TXE)) {}
+
+    USART4->TDR = b;
+#else
     while(!(USART1->ISR & USART_ISR_TXE)) {}
 
     USART1->TDR = b;
+#endif
+
 }
 
 void UART_send(const uint8_t* d, size_t l) {
@@ -189,9 +203,20 @@ void SysTick_Handler(void) {
     ++timeTick;
 }
 
+#ifdef UART4
+void USART1_IRQHandler(void) {}
+
+void USART4_IRQHandler(void) {
+    if((USART4->ISR & USART_ISR_RXNE) == USART_ISR_RXNE) {
+        uint8_t c = USART4->RDR;
+#else
+void USART4_IRQHandler(void) {}
+
 void USART1_IRQHandler(void) {
     if((USART1->ISR & USART_ISR_RXNE) == USART_ISR_RXNE) {
         uint8_t c = USART1->RDR;
+#endif
+
         switch(commState) {
             case CommState_Start:
                 if(c == (uint8_t)Command_GetVersion) {
@@ -258,15 +283,31 @@ static void jumpToApp() {
 }
 
 static void initHardware(void) {
+#ifdef UART4
+    RCC->APB1ENR |= RCC_APB1ENR_USART4EN;
+    RCC->AHBENR |= RCC_AHBENR_IOPAEN;
+
+    // UART4 on PA0/PA1
+    GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_UP | GPIO_PUPDR_PUPDR1_UP;
+    GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODER0|GPIO_MODER_MODER1)) | (GPIO_MODER_MODER0_ALT | GPIO_MODER_MODER1_ALT);
+    GPIOA->AFRL  = (GPIOA->AFRL  & ~(GPIO_AFRL_AFR0 | GPIO_AFRL_AFR1))     | 0x44 ; // AF4: USART4 Alternate Function mapping
+
+    USART4->BRR = CPU_F / BAUD;
+    USART4->CR1 = USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;
+
+    SysTick->RVR = CPU_F / 10 - 1; // 100 ms
+    SysTick->CVR = 0;
+    SysTick->CSR |= SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE;
+
+    NVIC_EnableIRQ(USART4_IRQn);
+#else
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     RCC->AHBENR |= RCC_AHBENR_IOPAEN;
 
     // UART1 on PA9/PA10
     GPIOA->PUPDR |= GPIO_PUPDR_PUPDR9_UP | GPIO_PUPDR_PUPDR10_UP;
-    GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODER9|GPIO_MODER_MODER10))
-        | (GPIO_MODER_MODER9_ALT | GPIO_MODER_MODER10_ALT);
-    GPIOA->AFRH = (GPIOA->AFRH &~ (GPIO_AFRH_AFR9 | GPIO_AFRH_AFR10))
-        | (1 << (1 * 4)) | (1 << (2 * 4));
+    GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODER9|GPIO_MODER_MODER10)) | (GPIO_MODER_MODER9_ALT | GPIO_MODER_MODER10_ALT);
+    GPIOA->AFRH  = (GPIOA->AFRH  & ~(GPIO_AFRH_AFR9 | GPIO_AFRH_AFR10))     | (1 << (1 * 4)) | (1 << (2 * 4)); //0x110
 
     USART1->BRR = CPU_F / BAUD;
     USART1->CR1 = USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_TE | USART_CR1_UE;
@@ -276,9 +317,20 @@ static void initHardware(void) {
     SysTick->CSR |= SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE;
 
     NVIC_EnableIRQ(USART1_IRQn);
+#endif
+
 }
 
 static void deinitHardware(void) {
+#ifdef UART4
+    NVIC_DisableIRQ(USART4_IRQn);
+
+    // all changed registers to their reset-values
+    SysTick->CSR = 0;
+
+    USART4->CR1  = 0;
+    USART4->BRR  = 0;
+#else
     NVIC_DisableIRQ(USART1_IRQn);
 
     // all changed registers to their reset-values
@@ -286,6 +338,7 @@ static void deinitHardware(void) {
 
     USART1->CR1  = 0;
     USART1->BRR  = 0;
+#endif
 
     GPIOA->MODER = 0x28000000;
     GPIOA->PUPDR = 0x24000000;

@@ -5,5 +5,8 @@ all:
 clean:
 	rm -rf build/*
 
+flash:
+	st-flash write build/main.bin 0x8000000
+
 .PHONY: all clean
 

@@ -47,6 +47,7 @@
 #define SPI2_IRQn                 26
 #define USART1_IRQn               27
 #define USART2_IRQn               28
+#define USART4_IRQn               29
 #define USART3_4_5_6_IRQn         29
 #define USB_IRQn                  31
 
