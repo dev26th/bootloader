@@ -9,6 +9,7 @@
 
 void SysTick_Handler(void);
 void USART1_IRQHandler(void);
+void USART4_IRQHandler(void);
 
 __attribute__ ((used, section(".isr_vector")))
 const IRQHandler_t g_IRQHandlers[] =
@@ -63,7 +64,7 @@ const IRQHandler_t g_IRQHandlers[] =
     Default_Handler, // SPI2_IRQHandler
     USART1_IRQHandler,
     Default_Handler, // USART2_IRQHandler
-    Default_Handler, // USART3_4_5_6_IRQHandler
+    USART4_IRQHandler, // USART3_4_5_6_IRQHandler
     0,
     Default_Handler, // USB_IRQHandler
 };
